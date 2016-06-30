@@ -1,42 +1,55 @@
-<!--
-Copyright 2016 Google Inc. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>inert polyfill test page</title>
+  <html>
+  <body>
+    <script src="inertifyII.js"></script>
     <style>
       .container {
         border: 1px solid black;
-        margin: 2px;
+        margin: 2em;
       }
-      [inert] {
-        opacity: 0.5;
-      }
+
     </style>
-  </head>
-  <body>
-    <p>Note: polyfill currently <strong>does not</strong> handle nested <code>inert</code> blocks - things will break if you remove <code>inert</code> from an element which has an <code>inert</code> descendant.</p>
+    <h1>What even is this?</h1>
+    <p>The HTML spec contains a definition of a concept called 'inert'.  An 'inert' element is temporarily non-interactive - that is, you cannot focus it with the tab key, you cannot focus it with the mouse, and screen readers can't see it.  When an element is 'inert' its entire subtree is also inert. Several existing UI metaphors rely on making something temporarily inert - for example: a dialog makes everything else inert, a coverflow style interface would make the contents of the non-selected items inert - they're visible but you don't want them in the tab order or showing up to a screen reader - a stack or deck which paints things on top of one another might be the same issue.  In any case, it's hard managing all of this and so there are efforts to find some better accessibility primitives and easier sugar for defining things.  This is an experiment along those lines.</p>
+    <h2>Explainer</h2>
+    <p><code>inert</code> is a state of being that any element can be in, but it is initiated by an <code>inert-container</code>.  For purposes of forward compatibility and experimentation, there are two methods on document <code>document.inertify(element)</code> and <code>document.deinertify(element)</code>.  Calling one of these methods makes that passed element an <code>inert-container</code>, or not.  There is also an exposed getter on <code>HTMLElement.prototype.isInert</code> which will tell you if that code is in an <code>inert</code> state regarless of whether it, itself, is an <code>inert-container</code>.  It has a corresponding setter as well which has the same effect as calling <code>document.inertify(element)</code> or <code>document.inertify(element)</code> with that element (simply because I'm not sure what's better).  Setting the <code>inert-container</code> attribute (or removing it) has a similar effect as well.  Why?  Because I really have no idea what the best way to use this feature is :)</p>
+
+    <h2>Tests/Demo</h2>
     <div class="container">
       <a href="#">Foo</a>
-      <button>Bar</button>
       <input type="text">
-      <div inert class="container">
+      <button id="inertify">intertify x</button>
+      <button id="deinertify">remove inertification from x</button>
+      <button id="insert">insert a new child into inertable container</button>
+      <div class="container" id="x">
+        This is container 'x'...
         <div tabindex="0">tabindex=0</div>
         <div tabindex="-1">tabindex=-1</div>
         <div tabindex="2">tabindex=2</div>
+        <div class="container" inert-container>
+          <div tabindex="0">tabindex=0</div>
+        </div>
+        <a href="javascript:alert('whoops')">I will alert 'whoops'</a>
       </div>
+      <div class="container" inert-container>This was marked <a href="javascript:alert('can you click me?')">inert in the source</a></div>
     </div>
-    <script src="inert.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelector('#inertify').addEventListener('click', function () {
+      document.querySelector('#x').setAttribute('inert-container','');
+    }, false);
+
+    document.querySelector('#deinertify').addEventListener('click', function () {
+      document.querySelector('#x').removeAttribute('inert-container');
+    }, false);
+
+    document.querySelector('#insert').addEventListener('click', function () {
+			var btn = document.createElement('div');
+      btn.tabIndex = "0";
+      btn.innerHTML = "test";
+      document.querySelector('#x').appendChild(btn);
+    }, false);
+  });
+  </script>
   </body>
-</html>
+  </html>
