@@ -1,90 +1,128 @@
-/**
- *
- * Copyright 2016 Google Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+(function () {
+  var walker,
+    node,
+    _preventer = function (evt) { evt.preventDefault(); },
+    sheet = document.createElement('style'),
+    observer = new MutationObserver(function (records, self) {
+      var target, inert, record, reinitSet = new Set();
 
-class Detabinator {
-  constructor(element) {
-    if (!element) {
-      throw new Error('Missing required argument. new Detabinator needs an element reference');
-    }
-    this._inert = false;
-    this._focusableElementsString = 'a[href],area[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex],[contenteditable]';
-    this._focusableElements = Array.from(
-      element.querySelectorAll(this._focusableElementsString)
-    );
-  }
+      for (record of records) {
+        target = record.target;
 
-  get inert() {
-    return this._inert;
-  }
+        if (record.type == 'attributes' && record.attributeName === 'inert-container') {
+          // if someone added an inert-container or removed an inert container...
+          if (target.hasAttribute('inert-container')) {
+            document.inertify(target);
+          } else {
+            document.deinertify(target);
+          }
+        } else  {
+          // if someone added other element..
+          Array.from(record.addedNodes).forEach((child) => {
+            var inheritedAncestor;
+            if (child.hasAttribute && child.hasAttribute('inert-container')) {
+              document.inertify(child);
+            } else {
+              // collect a set of
+              inertedAncestor = child.closest && child.closest('[inert-container]');
+              if (inertedAncestor) {
+                reinitSet.add(inertedAncestor);
+              }
+            }
+          });
 
-  set inert(isInert) {
-    if (this._inert === isInert) {
-      return;
-    }
-
-    this._inert = isInert;
-
-    this._focusableElements.forEach((child) => {
-      if (isInert) {
-        // If the child has an explict tabindex save it
-        if (child.hasAttribute('tabindex')) {
-          child.__savedTabIndex = child.tabIndex;
-        }
-        // Set ALL focusable children to tabindex -1
-        child.setAttribute('tabindex', -1);
-      } else {
-        // If the child has a saved tabindex, restore it
-        // Because the value could be 0, explicitly check that it's not false
-        if (child.__savedTabIndex === 0 || child.__savedTabIndex) {
-          return child.setAttribute('tabindex', child.__savedTabIndex);
-        } else {
-          // Remove tabindex from ANY REMAINING children
-          child.removeAttribute('tabindex');
+          reinitSet.forEach((item) => {
+            document.inertify(item, true);
+          });
         }
       }
     });
+
+  Object.defineProperty(HTMLElement.prototype, 'isInert', {
+    get: function () {
+      return this.closest('[inert-container]') !== null;
+    },
+    set: function (val) {
+      if (val === true) {
+        document.inertify(this);
+      } else if (val === false) {
+        document.deinertify(this);
+      } else {
+        throw new Error('isInert requires a boolean argument to set');
+      }
+    }
+  });
+
+  document.inertify = function (element, _internal) {
+    var node, walker;
+
+    if (!element) {
+      throw new Error('Missing required argument. inertify() needs an element reference');
+    }
+
+    if (_internal !== true) {
+      element.addEventListener('click', _preventer, true);
+      if (element.hasAttribute('aria-hidden')) {
+        // if this was aria-hidden already, save it
+        element.setAttribute('inertariahidden', 'true');
+      }
+      if (!element.hasAttribute('inert-container')) {
+        element.setAttribute('inert-container', '');
+      }
+      if (!element.hasAttribute('aria-hidden')) {
+        element.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    walker=document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT, null, false);
+
+    while(node = walker.nextNode()) {
+       // If the child has an explict tabindex save it
+      if (node.hasAttribute('tabindex')) {
+        node.setAttribute('inerttabindex', node.tabIndex);
+        node.removeAttribute('tabindex');
+      }
+
+    }
+  };
+
+  document.deinertify = function (element, _interal) {
+    var node, walker;
+
+    if (!element) {
+      throw new Error('Missing required argument. deinertify() needs an element reference');
+    }
+
+    element.removeEventListener('click', _preventer, true);
+    if (!element.hasAttribute('inertariahidden')) {
+      element.removeAttribute('aria-hidden');
+    }
+    element.removeAttribute('inert-container');
+    element.removeAttribute('inertariahidden');
+
+    walker = document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT, function (node) {
+      return (!node.hasAttribute('inert-container')) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }, false);
+
+    while(node = walker.nextNode()) {
+       if (node.hasAttribute('inerttabindex')) {
+          node.setAttribute('tabindex', node.getAttribute('inerttabindex'));
+          node.removeAttribute('inerttabindex');
+       }
+    }
+  };
+
+  sheet.innerHTML = '@charset \"utf-8\"; [inert-container] {opacity: 0.5;}'
+  document.head.appendChild(sheet);
+
+  observer.observe(document.body, { attributes: true, subtree: true, childList: true });
+
+  walker=document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, null, false);
+  while(node = walker.nextNode()) {
+     // If the child has an explict tabindex save it
+    if (node.hasAttribute('inert-container')) {
+      document.inertify(node);
+    }
   }
-}
 
-function observe(records, self) {
-  for (var record of records) {
-    if (record.type != 'attributes')
-      continue;
-    if (record.attributeName != 'inert')
-      continue;
-    var target = record.target;
-    if (target.detabinator === undefined)
-        target.detabinator = new Detabinator(target);
-    var inert = target.hasAttribute('inert');
-    target.detabinator.inert = inert;
-    if (inert)
-      target.setAttribute('aria-hidden', 'true');
-    else
-      target.removeAttribute('aria-hidden')
-  }
-}
-
-var observer = new MutationObserver(observe);
-observer.observe(document.body, { attributes: true, subtree: true });
-
-var inertElements = document.querySelectorAll('[inert]');
-for (var i = 0; i < inertElements.length; i++) {
-  var inertElement = inertElements[i];
-  inertElement.detabinator = new Detabinator(inertElement);
-  inertElement.detabinator.inert = true;
-  inertElement.setAttribute('aria-hidden', 'true');
-}
+}());
