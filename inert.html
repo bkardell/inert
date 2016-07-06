@@ -106,26 +106,23 @@ limitations under the License.
       </div>
     </section>
         
-        <script src='https://alice.github.io/inert/inert.js'></script>
     
-            <script>
-          var toggler = document.querySelector('#toggle');
-    toggler.addEventListener('change',
-      function (evt) {
-        console.log(evt.target.checked);
-        document.querySelector('#content').inert = (evt.target.checked == true);
-      },
-      false
-    );
+    <script>
+      var toggler = document.querySelector('#toggle');
+      toggler.addEventListener('change',
+        function (evt) {
+            document.querySelector('#content').inert = (evt.target.checked == true);
+        },
+        false
+        );
     
-    var toggler = document.querySelector('#toggle2');
-    toggler.addEventListener('change',
-      function (evt) {
-        console.log(evt.target.checked);
-        document.querySelector('#innercontent').inert = (evt.target.checked == true);
-      },
-      false
-    );
+        toggler = document.querySelector('#toggle2');
+        toggler.addEventListener('change',
+            function (evt) {
+                document.querySelector('#innercontent').inert = (evt.target.checked == true);
+            },
+            false
+        );
     </script>
     <script src="inert.js"></script>
   </body>
